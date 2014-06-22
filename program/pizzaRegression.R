@@ -16,34 +16,59 @@ sigmoid <- function(z){
 
 costFunction <- function(theta,X,y){
   m<-length(y);
-  theta <- data.matrix(theta);
-  X <- data.matrix(X);
-  y <- data.matrix(y);
-  J<- (t(log(sigmoid(X %*% theta))) %*% y - t(log(1-sigmoid(X %*% theta))) %*% (1-y))/m;
+  theta <- as.matrix(theta);
+  X <- as.matrix(X);
+  y <- as.matrix(y);
+  J<- (t(log(sigmoid(X %*% theta))) %*% -y - t(log(1-sigmoid(X %*% theta))) %*% (1-y))/m;
   return(J)
 }
 
-gradientDescent <- function(theta,X,y,alpha,num_iters){
+gradient <- function(theta,X,y){
   m<-length(y);
-  J_history <- matrix(0,num_iters,1);
   theta_temp <- matrix(0,nrow(theta),ncol(theta));
   
-  for(iter in 1:num_iters){
-    for(i in 1:length(theta_temp)){
-      theta_temp[i]<-(t(X[,i])*sigmoid(X*theta)-y)/m;
+  for(i in 1:length(theta_temp)){
+      theta_temp[i]<-(t(X[,i])%*%(sigmoid(X%*%theta)-y))*(1/m);
     }
-    theta <- theta-theta_temp;
-    
-    J_history(iter) <- costFunction(theta,X,y);
-    
-    return(theta)
-  }
+  return(theta_temp);
 }
 
+grad.Descent <- function(theta,X,y,alpha,num_iters){
+  J_history <- matrix(0,num_iters,1);
+  #m<-length(y);
+  #theta_temp <- theta;
+  
+  for(iter in 1:num_iters){
+    theta <- theta-alpha * gradient(theta,X,y);
+    J_history[iter] <- costFunction(theta,X,y);
+  }
+  return(theta)
+}
+
+grad.Ascent <- function(theta,X,y,alpha,num_iters){
+  J_history <- matrix(0,num_iters,1);
+  m<-length(y);
+  
+  for(iter in 1:num_iters){
+      theta <- theta+alpha * gradient(theta,X,y);
+      J_history[iter] <- costFunction(theta,X,y);
+  } 
+  return(theta)
+}
+
+predict <- function(theta,X){
+  m <- nrow(X);
+  p <- matrix(0,m,1);
+  
+  for(i in 1:m){
+    p[i] <- ifelse(sigmoid(X[i,] %*% theta)>=0.5,1,0);
+  }
+  return(p)
+}
+
+
 #Processing the data
-data <- read.csv("ex2data1.txt",head=FALSE,col.names=c("Exam1","Exam2","Admitted"))
-
-
+data <- read.table("ex2data1.txt",head=FALSE,sep=",",col.names=c("Exam1","Exam2","Admitted"))
 
 #Ploting the data
 plotData(subset(data,1==1,c(1,2)),subset(data,1==1,3))
@@ -52,13 +77,36 @@ plotData(subset(data,1==1,c(1,2)),subset(data,1==1,3))
 sigmoid(0)
 
 #Test Cost Function
-data <- data.matrix(data)
-X <- subset(data,1==1,c(1,2))
-y <- subset(data,1==1,3)
+options(digits=8)
+X <- cbind(as.numeric(as.vector(data[,1])),as.numeric(as.vector(data[,2])))
+y <- data.matrix(subset(data,1==1,3))
 m <- nrow(X); n <- ncol(X);
 temp <- vector("numeric", length = m) + 1;
-X <- cbind(data.frame(temp),X)
+X <- as.matrix(cbind(data.frame(temp),X))
 initial_theta <- data.matrix(vector("numeric", length = n+1))
-costFunction(initial_theta,X,y)
+costFunction(initial_theta,X,y);
+
+#Test gradient
+theta <- data.matrix(vector("numeric", length = n+1));
+theta_temp <- matrix(0,nrow(theta),ncol(theta));
+gradient(theta,X,y)
+
+#Test gradient Descent
+alpha <- 1/length(y);
+theta <- theta + alpha * gradient(theta,X,y);
+cost <- costFunction(theta,X,y);
 
 
+theta <- data.matrix(vector("numeric", length = n+1));
+theta <- grad.Descent(theta,X,y,0.0001,100000000)
+theta <- grad.Descent(theta,X,y,0.0001,4000)
+costFunction(theta,X,y);
+
+#Test Predict
+theta <- c(-25.16127,0.20623,0.20147)
+p <- predict(theta,X)
+accuracy <- mean(as.numeric(p==y))
+
+fn <- function(x)costFunction(theta,X,y)
+gn <- function(x)gradient(theta,X,y)
+optim(theta,fn,gn)
