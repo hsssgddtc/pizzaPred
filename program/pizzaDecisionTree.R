@@ -2,7 +2,7 @@ Sys.setlocale(locale="US")
 createDataSet <- function(){
   dataSet <<- data.frame(c(1,1,1,0,0),c(1,1,0,1,1),c("yes","yes","no","no","no"),stringsAsFactors=FALSE);
   #dataSet <<- list(c(1,1,'yes'),c(1,1,'yes'),c(1,0,'no'),c(0,1,'no'),c(0,1,'no'))
-  label <<- c("no surfacting","flippers");
+  label <<- c("no surfacing","flippers");
   names(dataSet) <<- c("no surfactin","flippers","fish")
 }
 
@@ -28,7 +28,7 @@ splitDataSet <- function(dataSet,axis,value){
   retDataSet = data.frame();
   for(i in 1:nrow(dataSet)){
     if(dataSet[i,axis]==value){
-      reducedFeatVec = dataSet[i,c(axis,ncol(dataSet))]
+      reducedFeatVec = dataSet[i,c(-axis)]
       retDataSet <- rbind(retDataSet,reducedFeatVec)
     }
   }
@@ -61,42 +61,69 @@ chooseBestFeatureToSplit <- function(dataSet){
 
 majorityCnt <- function(classList){
   tableClassList = table(classList)
-  return(names(subset(tableClassList,tableClassList==max(t),)))
+  return(names(subset(tableClassList,tableClassList==max(tableClassList),)))
 }
 
 createTree <- function(dataSet,label){
+  #print(dataSet)
   classList <- dataSet[,ncol(dataSet)]
   if(dim(table(classList))==1){
-    return(unique(classList))
+    return(unique(as.vector(classList)))
   }
   if(ncol(dataSet)==1){
     return(majorityCnt(classList))
   }
   bestFeat = chooseBestFeatureToSplit(dataSet)
   bestFeatLabel = label[bestFeat]
-  myTree=list(label[bestFeat])
-  label = label[-bestFeat]
+  myTree <- list()
+  #order = length(myTree)-length(label)+1
+  #names(myTree)[order] <<- bestFeatLabel
   featValues = dataSet[,bestFeat]
   uniqueVals = unique(featValues)
-  for(i in length(uniqueVals)){
-    myTree= append(myTree,createTree(splitDataSet(dataSet,bestFeat,uniqueVals[i]),label))
+  #myTree[[bestFeatLabel]] <<- vector(mode="list",length=length(uniqueVals))
+  #names(myTree[[bestFeatLabel]]) <<- uniqueVals
+  for(i in 1:length(uniqueVals)){
+    #myTree<<- append(myTree,createTree(splitDataSet(dataSet,bestFeat,uniqueVals[i]),label))
+    value = as.character(uniqueVals[i])
+    myTree[[bestFeatLabel]][[value]] <- createTree(splitDataSet(dataSet,bestFeat,value),label[-bestFeat])
+    #while value ==0 , the index will be a problem
   }
   return(myTree)
+}
+
+classify <- function(inputTree,featLabels,testVec){
+  #print(testVec)
+  firstStr = names(inputTree)
+  #print(firstStr)
+  #print(featLabels)
+  featIndex = match(firstStr,featLabels)
+  #print(featIndex)
+  for(i in 1:length(names(inputTree[[firstStr]]))){
+    #print(names(inputTree[[firstStr]])[[i]])
+   # print(testVec[featIndex])
+    if(names(inputTree[[firstStr]])[[i]]==testVec[featIndex]){
+      if(class(inputTree[[firstStr]][[i]])=="list"){
+        classLabel=classify(inputTree[[firstStr]][[i]],featLabels,testVec)
+      }
+      else{
+        classLabel=inputTree[[firstStr]][[i]]
+      }
+    }
+  }
+  return(classLabel)
 }
 
 #Test Part
 createDataSet()
 calcShannonEnt(dataSet)
-splitDataSet(dataSet,1,1)
+splitDataSet(dataSet,1,0)
 chooseBestFeatureToSplit(dataSet)
 classList = dataSet[,ncol(dataSet)]
 majorityCnt(classList)
+
 myTree = createTree(dataSet,label)
 
-myTree=list(label[1])
-myTree = append(myTree,c(0,"no"))
-myTree = append(myTree,)
-t2=list(list(c(0,"no"),c(1,list("flippers",list(c(0,"no"),c(1,"yes")))))) 
-myTree = append(t1,t2)
-myTree <- list(label[1],list(c(0,"no"),c(1,list("flippers",list(c(0,"no"),c(1,"yes"))))))
+classify(myTree,label,c(0,1))
+classify(myTree,label,c(1,0))
+classify(myTree,label,c(1,1))
 
